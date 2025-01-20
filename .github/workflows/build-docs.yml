@@ -5,90 +5,79 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-env:
-  INSTANCE: 'Writerside/adoc'
-  DOCKER_VERSION: '243.22562'
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      algolia_artifact: ${{ steps.define-ids.outputs.algolia_artifact }}
-      artifact: ${{ steps.define-ids.outputs.artifact }}
     steps:
+      # 1. 取得程式庫
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: List project structure
-        run: ls -R
-
-      - name: Define instance id and artifacts
-        id: define-ids
-        run: |
-          INSTANCE=${INSTANCE#*/}
-          INSTANCE_ID_UPPER=$(echo "$INSTANCE" | tr '[:lower:]' '[:upper:]')
-          ARTIFACT="webHelp${INSTANCE_ID_UPPER}2-all.zip"
-          ALGOLIA_ARTIFACT="algolia-indexes-${INSTANCE_ID_UPPER}.zip"
-
-          echo "INSTANCE_ID_UPPER: $INSTANCE_ID_UPPER"
-          echo "ARTIFACT: $ARTIFACT"
-          echo "ALGOLIA_ARTIFACT: $ALGOLIA_ARTIFACT"
-
-          echo "INSTANCE_ID_UPPER=$INSTANCE_ID_UPPER" >> $GITHUB_ENV
-          echo "ARTIFACT=$ARTIFACT" >> $GITHUB_ENV
-          echo "ALGOLIA_ARTIFACT=$ALGOLIA_ARTIFACT" >> $GITHUB_ENV
-          echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
-          echo "algolia_artifact=$ALGOLIA_ARTIFACT" >> $GITHUB_OUTPUT
-
+      # 2. 建置 Writerside 文件
       - name: Build docs using Writerside Docker builder
         uses: JetBrains/writerside-github-action@v4
         with:
-          # 如果 writerside.cfg 在子資料夾 Writerside/，就需要 location
+          # 如果 writerside.cfg 位於專案根目錄，可改為 '.'；若在子資料夾 Writerside/，就用 'Writerside'
           location: Writerside
 
-          # 你要 build 的 instance，是 writerside.cfg 裡面 <instance> 標籤指定的
-          instance: Writerside/adoc
+          # 多數 Writerside 專案會在 writerside.cfg 的 <instance> 內使用 module="Writerside" product="adoc"
+          # 因此必須是 Writerside/adoc 而不是單純 adoc
+          instance: 'Writerside/adoc'
 
-          # Docker 版本要用實際存在的 Tag，例如 "243.22562" 或 "latest"
+          # 指定官方可用的 Docker Tag，例如 243.22562, latest, 等
           docker-version: '243.22562'
 
-          # 可以指定最終輸出名稱（可選）
+          # 輸出檔案名稱（可自訂）
           artifact: 'webHelpADOC2-all.zip'
+
         env:
+          # 啟用詳細輸出
           LOG_LEVEL: DEBUG
 
-      - name: Save artifact with build results
+      # 3. 上傳產出的 ZIP (以及其他需要的檔案) 為 Artifact，以便後續使用
+      - name: Upload Writerside artifact
         uses: actions/upload-artifact@v4
         with:
           name: docs
           path: |
-            artifacts/${{ steps.define-ids.outputs.artifact }}
-            artifacts/report.json
-            artifacts/${{ steps.define-ids.outputs.algolia_artifact }}
-          retention-days: 7
+            webHelpADOC2-all.zip
+            # 若還要上傳其他檔案或資料夾，也可一併列出
 
   deploy:
+    # 表示本 Job 必須等待 build Job 完成
     needs: build
     runs-on: ubuntu-latest
+    # 如要發布到 GitHub Pages，需要設定 Permissions
     permissions:
       id-token: write
       pages: write
+
     steps:
+      # 1. 下載上一個 Job 上傳的 Artifact
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: docs
+          path: artifacts
+
+      # 2. 檢查剛下載的檔案
       - name: List artifacts directory
         run: ls -la artifacts/
 
+      # 3. 解壓縮 Writerside 輸出 (webHelpADOC2-all.zip) 到 site/
       - name: Unzip website
         run: unzip artifacts/webHelpADOC2-all.zip -d site
 
+      # 4. 啟用 GitHub Pages
       - name: Enable GitHub Pages
         uses: actions/configure-pages@v4
 
+      # 5. 上傳「靜態網站」到 GitHub Pages Artifact
       - name: Upload to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
+      # 6. 正式部署到 GitHub Pages
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4

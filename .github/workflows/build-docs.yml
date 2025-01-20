@@ -49,7 +49,7 @@ jobs:
           location: Writerside
 
           # 你要 build 的 instance，是 writerside.cfg 裡面 <instance> 標籤指定的
-          instance: adoc
+          instance: Writerside/adoc
 
           # Docker 版本要用實際存在的 Tag，例如 "243.22562" 或 "latest"
           docker-version: '243.22562'

@@ -45,8 +45,9 @@ jobs:
       - name: Build docs using Writerside Docker builder
         uses: JetBrains/writerside-github-action@v4
         with:
-          instance: ${{ env.INSTANCE }}
-          docker-version: ${{ env.DOCKER_VERSION }}
+          instance: Writerside
+          docker-version: adoc
+          build-dir: artifacts        # <-- 指定輸出到 artifacts 目錄
         env:
           LOG_LEVEL: DEBUG  # 啟用詳細日誌
 

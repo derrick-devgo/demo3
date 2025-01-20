@@ -45,11 +45,19 @@ jobs:
       - name: Build docs using Writerside Docker builder
         uses: JetBrains/writerside-github-action@v4
         with:
-          instance: Writerside
-          docker-version: adoc
-          build-dir: artifacts        # <-- 指定輸出到 artifacts 目錄
+          # 如果 writerside.cfg 在子資料夾 Writerside/，就需要 location
+          location: Writerside
+
+          # 你要 build 的 instance，是 writerside.cfg 裡面 <instance> 標籤指定的
+          instance: adoc
+
+          # Docker 版本要用實際存在的 Tag，例如 "243.22562" 或 "latest"
+          docker-version: '243.22562'
+
+          # 可以指定最終輸出名稱（可選）
+          artifact: 'webHelpADOC2-all.zip'
         env:
-          LOG_LEVEL: DEBUG  # 啟用詳細日誌
+          LOG_LEVEL: DEBUG
 
       - name: Save artifact with build results
         uses: actions/upload-artifact@v4
